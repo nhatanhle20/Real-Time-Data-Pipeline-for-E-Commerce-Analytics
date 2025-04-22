@@ -35,10 +35,11 @@ json_df = df.selectExpr("CAST(value AS STRING)") \
 agg_df = json_df.groupBy("category").sum("quantity")
 
 # Output to console for testing
-query = agg_df.writeStream \
+agg_df.writeStream \
+    .format("bigquery") \
+    .option("table", "ecommerce-data-pipeline-2025.ecommerce_analytics.sales_by_category") \
+    .option("checkpointLocation", "/tmp/bq-checkpoint") \
+    .option("parentProject", "ecommerce-data-pipeline-2025") \
     .outputMode("complete") \
-    .format("console") \
-    .option("truncate", False) \
-    .start()
-
-query.awaitTermination()
+    .start() \
+    .awaitTermination()
