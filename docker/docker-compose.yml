@@ -27,14 +27,16 @@ services:
       - pipeline-net
 
   spark:
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.3.2
     container_name: spark
     environment:
       - SPARK_MODE=master
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/bitnami/spark/conf/gcp-credentials.json
     networks:
       - pipeline-net
     volumes:
-      - ./app:/app  # Your Python scripts (spark_stream.py etc.)
+      - ../app:/app  # Python scripts (spark_stream.py etc.)
+      - ../gcp-credentials.json:/opt/bitnami/spark/conf/gcp-credentials.json
 
   grafana:
     image: grafana/grafana:latest
