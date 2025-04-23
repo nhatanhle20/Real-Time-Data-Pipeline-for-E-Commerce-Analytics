@@ -34,12 +34,27 @@ json_df = df.selectExpr("CAST(value AS STRING)") \
 # Aggregate: total quantity sold per category
 agg_df = json_df.groupBy("category").sum("quantity")
 
-# Output to console for testing
-agg_df.writeStream \
-    .format("bigquery") \
-    .option("table", "ecommerce-data-pipeline-2025.ecommerce_analytics.sales_by_category") \
-    .option("checkpointLocation", "/tmp/bq-checkpoint") \
-    .option("parentProject", "ecommerce-data-pipeline-2025") \
+# Function to write each batch to PostgreSQL
+def write_batch_to_postgres(batch_df, batch_id):
+    # Write the batch to PostgreSQL
+    if not batch_df.isEmpty():
+        batch_df.write \
+            .format("jdbc") \
+            .option("url", "jdbc:postgresql://host.docker.internal:5432/ecommerce_db") \
+            .option("driver", "org.postgresql.Driver") \
+            .option("dbtable", "sales_summary") \
+            .option("user", "ecommerce") \
+            .option("password", "ecommerce123") \
+            .mode("overwrite") \
+            .save()
+        print(f"Batch {batch_id} written to PostgreSQL")
+
+# Use foreachBatch to process each micro-batch
+query = agg_df.writeStream \
+    .foreachBatch(write_batch_to_postgres) \
     .outputMode("complete") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint") \
     .start() \
-    .awaitTermination()
+
+# Wait for the streaming query to terminate
+query.awaitTermination()
