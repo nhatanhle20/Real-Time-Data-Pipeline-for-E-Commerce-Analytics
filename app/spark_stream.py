@@ -47,7 +47,7 @@ agg_df = json_df \
     .agg(sum("quantity").alias("batch_quantity"))
 
 
-# Create table if not exist
+# Function to create required table if not exist
 def create_tables_if_not_exist():
     conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
     cursor = conn.cursor()
@@ -82,6 +82,24 @@ def create_tables_if_not_exist():
         )
     """)
     
+    # Create raw_transaction_data table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS raw_transaction_data (
+            id SERIAL PRIMARY KEY,
+            order_id VARCHAR(255) UNIQUE NOT NULL,
+            user_id VARCHAR(255) NOT NULL,
+            user_name VARCHAR(255) NOT NULL,
+            user_email VARCHAR(255) NOT NULL,
+            product_id VARCHAR(255) NOT NULL,
+            category VARCHAR(255) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            quantity INTEGER NOT NULL,
+            payment_method VARCHAR(100) NOT NULL,
+            timestamp TIMESTAMP NOT NULL,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
     # Create indexes
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_batch_details_category ON batch_details(category)
@@ -94,6 +112,15 @@ def create_tables_if_not_exist():
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(user_email)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_user_id ON raw_transaction_data(user_id)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_category ON raw_transaction_data(category)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON raw_transaction_data(timestamp)
     """)
     
     conn.commit()
@@ -160,6 +187,33 @@ def write_to_database(batch_df, batch_id, data_type=None):
         
         print(f"Batch {batch_id}: {len(users_data)} users processed")
     
+    elif data_type == 'transaction':
+        # Process complete transaction data
+        transactions_data = batch_df.collect()
+        
+        for transaction_row in transactions_data:
+            order_id = transaction_row['order_id']
+            user_id = transaction_row['user_id']
+            user_name = transaction_row['user_name']
+            user_email = transaction_row['user_email']
+            product_id = transaction_row['product_id']
+            category = transaction_row['category']
+            price = transaction_row['price']
+            quantity = transaction_row['quantity']
+            payment_method = transaction_row['payment_method']
+            timestamp = transaction_row['timestamp']
+
+            cursor.execute("""
+                INSERT INTO raw_transaction_data (
+                    order_id, user_id, user_name, user_email, product_id, 
+                    category, price, quantity, payment_method, timestamp, processed_at
+                ) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (order_id, user_id, user_name, user_email, product_id, 
+                  category, price, quantity, payment_method, timestamp))
+        
+        print(f"Batch {batch_id}: {len(transactions_data)} transactions processed")
+    
     conn.commit()
     cursor.close()
     conn.close()
@@ -170,16 +224,29 @@ create_tables_if_not_exist()
 
 
 # Use lambda functions to pass different data types
+
+# Process category aggregations
 query1 = agg_df.writeStream \
     .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'category')) \
     .outputMode("update") \
     .option("checkpointLocation", "/tmp/spark-checkpoint-categories") \
     .start()
 
+
+# Process user data
 query2 = json_df.writeStream \
     .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'user')) \
     .outputMode("append") \
     .option("checkpointLocation", "/tmp/spark-checkpoint-users") \
     .start()
+
+
+# Process complete transaction data
+query3 = json_df.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'transaction')) \
+    .outputMode("append") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-transactions") \
+    .start()
+
 
 query1.awaitTermination()
