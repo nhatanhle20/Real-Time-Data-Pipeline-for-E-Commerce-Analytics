@@ -4,16 +4,22 @@ from pyspark.sql.types import StructType, StringType, FloatType, IntegerType
 import psycopg2
 
 
-# Define schema for incoming JSON data
+# Define schema for incoming JSON data with new address and shipping fields
 schema = StructType() \
     .add("order_id", StringType()) \
     .add("user_id", StringType()) \
     .add("user_name", StringType()) \
     .add("user_email", StringType()) \
+    .add("street", StringType()) \
+    .add("city", StringType()) \
+    .add("state", StringType()) \
+    .add("postal_code", StringType()) \
+    .add("country", StringType()) \
     .add("product_id", StringType()) \
     .add("category", StringType()) \
     .add("price", FloatType()) \
     .add("quantity", IntegerType()) \
+    .add("shipping_method", StringType()) \
     .add("payment_method", StringType()) \
     .add("timestamp", StringType())
 
@@ -27,7 +33,7 @@ spark = SparkSession.builder \
 # Read from Kafka
 df = spark.readStream \
     .format("kafka") \
-    .option("kafka.bootstrap.servers", "kafka:9092") \
+    .option("kafka.bootstrap.servers", "kafka:29092") \
     .option("subscribe", "ecommerce-transactions") \
     .option("startingOffsets", "earliest") \
     .option("failOnDataLoss","false") \
@@ -82,7 +88,7 @@ def create_tables_if_not_exist():
         )
     """)
     
-    # Create raw_transaction_data table
+    # Create raw_transaction_data table with new address and shipping fields
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS raw_transaction_data (
             id SERIAL PRIMARY KEY,
@@ -90,10 +96,16 @@ def create_tables_if_not_exist():
             user_id VARCHAR(255) NOT NULL,
             user_name VARCHAR(255) NOT NULL,
             user_email VARCHAR(255) NOT NULL,
+            street VARCHAR(500) NOT NULL,
+            city VARCHAR(255) NOT NULL,
+            state VARCHAR(255) NOT NULL,
+            postal_code VARCHAR(20) NOT NULL,
+            country VARCHAR(255) NOT NULL,
             product_id VARCHAR(255) NOT NULL,
             category VARCHAR(255) NOT NULL,
             price DECIMAL(10,2) NOT NULL,
             quantity INTEGER NOT NULL,
+            shipping_method VARCHAR(100) NOT NULL,
             payment_method VARCHAR(100) NOT NULL,
             timestamp TIMESTAMP NOT NULL,
             processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -121,6 +133,18 @@ def create_tables_if_not_exist():
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON raw_transaction_data(timestamp)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_city ON raw_transaction_data(city)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_state ON raw_transaction_data(state)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_country ON raw_transaction_data(country)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_shipping_method ON raw_transaction_data(shipping_method)
     """)
     
     conn.commit()
@@ -188,7 +212,7 @@ def write_to_database(batch_df, batch_id, data_type=None):
         print(f"Batch {batch_id}: {len(users_data)} users processed")
     
     elif data_type == 'transaction':
-        # Process complete transaction data
+        # Process complete transaction data with new address and shipping fields
         transactions_data = batch_df.collect()
         
         for transaction_row in transactions_data:
@@ -196,21 +220,29 @@ def write_to_database(batch_df, batch_id, data_type=None):
             user_id = transaction_row['user_id']
             user_name = transaction_row['user_name']
             user_email = transaction_row['user_email']
+            street = transaction_row['street']
+            city = transaction_row['city']
+            state = transaction_row['state']
+            postal_code = transaction_row['postal_code']
+            country = transaction_row['country']
             product_id = transaction_row['product_id']
             category = transaction_row['category']
             price = transaction_row['price']
             quantity = transaction_row['quantity']
+            shipping_method = transaction_row['shipping_method']
             payment_method = transaction_row['payment_method']
             timestamp = transaction_row['timestamp']
 
             cursor.execute("""
                 INSERT INTO raw_transaction_data (
-                    order_id, user_id, user_name, user_email, product_id, 
-                    category, price, quantity, payment_method, timestamp, processed_at
+                    order_id, user_id, user_name, user_email, street, city, state, 
+                    postal_code, country, product_id, category, price, quantity, 
+                    shipping_method, payment_method, timestamp, processed_at
                 ) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """, (order_id, user_id, user_name, user_email, product_id, 
-                  category, price, quantity, payment_method, timestamp))
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (order_id, user_id, user_name, user_email, street, city, state, 
+                  postal_code, country, product_id, category, price, quantity, 
+                  shipping_method, payment_method, timestamp))
         
         print(f"Batch {batch_id}: {len(transactions_data)} transactions processed")
     
