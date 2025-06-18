@@ -47,9 +47,30 @@ json_df = df.selectExpr("CAST(value AS STRING)") \
 
 
 # Aggregate: total quantity sold per category per batch
-agg_df = json_df \
+category_agg_df = json_df \
     .withColumn("quantity", col("quantity").cast("integer")) \
     .groupBy("category") \
+    .agg(sum("quantity").alias("batch_quantity"))
+
+
+# Aggregate: total quantity sold per city per batch
+city_agg_df = json_df \
+    .withColumn("quantity", col("quantity").cast("integer")) \
+    .groupBy("city", "state") \
+    .agg(sum("quantity").alias("batch_quantity"))
+
+
+# Aggregate: total quantity sold per payment method per batch
+payment_agg_df = json_df \
+    .withColumn("quantity", col("quantity").cast("integer")) \
+    .groupBy("payment_method") \
+    .agg(sum("quantity").alias("batch_quantity"))
+
+
+# Aggregate: total quantity sold per shipping method per batch
+shipping_agg_df = json_df \
+    .withColumn("quantity", col("quantity").cast("integer")) \
+    .groupBy("shipping_method") \
     .agg(sum("quantity").alias("batch_quantity"))
 
 
@@ -69,10 +90,39 @@ def create_tables_if_not_exist():
         )
     """)
     
-    # Create total_sales table
+    # Create sales_per_category table
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS total_sales (
+        CREATE TABLE IF NOT EXISTS sales_per_category (
             category VARCHAR(255) PRIMARY KEY,
+            total_quantity INTEGER NOT NULL DEFAULT 0,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Create sales_per_city table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sales_per_city (
+            city VARCHAR(255) NOT NULL,
+            state VARCHAR(255) NOT NULL,
+            total_quantity INTEGER NOT NULL DEFAULT 0,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (city, state)
+        )
+    """)
+
+    # Create sales_per_payment_method table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sales_per_payment_method (
+            payment_method VARCHAR(100) PRIMARY KEY,
+            total_quantity INTEGER NOT NULL DEFAULT 0,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Create sales_per_shipping_method table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sales_per_shipping_method (
+            shipping_method VARCHAR(100) PRIMARY KEY,
             total_quantity INTEGER NOT NULL DEFAULT 0,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -88,9 +138,9 @@ def create_tables_if_not_exist():
         )
     """)
     
-    # Create raw_transaction_data table with new address and shipping fields
+    # Create transaction_data table with new address and shipping fields
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS raw_transaction_data (
+        CREATE TABLE IF NOT EXISTS transaction_data (
             id SERIAL PRIMARY KEY,
             order_id VARCHAR(255) UNIQUE NOT NULL,
             user_id VARCHAR(255) NOT NULL,
@@ -120,31 +170,40 @@ def create_tables_if_not_exist():
         CREATE INDEX IF NOT EXISTS idx_batch_details_batch_id ON batch_details(batch_id)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_total_sales_updated ON total_sales(last_updated)
+        CREATE INDEX IF NOT EXISTS idx_sales_per_category_updated ON sales_per_category(last_updated)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sales_per_city_updated ON sales_per_city(last_updated)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sales_per_payment_method_updated ON sales_per_payment_method(last_updated)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_sales_per_shipping_method_updated ON sales_per_shipping_method(last_updated)
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(user_email)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_user_id ON raw_transaction_data(user_id)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_user_id ON transaction_data(user_id)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_category ON raw_transaction_data(category)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_category ON transaction_data(category)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON raw_transaction_data(timestamp)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON transaction_data(timestamp)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_city ON raw_transaction_data(city)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_city ON transaction_data(city)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_state ON raw_transaction_data(state)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_state ON transaction_data(state)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_country ON raw_transaction_data(country)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_country ON transaction_data(country)
     """)
     cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_shipping_method ON raw_transaction_data(shipping_method)
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_shipping_method ON transaction_data(shipping_method)
     """)
     
     conn.commit()
@@ -158,13 +217,13 @@ def write_to_database(batch_df, batch_id, data_type=None):
     conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
     cursor = conn.cursor()
     
-    # Auto-detect data type if not specified
-    if data_type is None:
-        columns = batch_df.columns
-        if 'batch_quantity' in columns and len(columns) == 2:
-            data_type = 'category'
-        elif 'user_id' in columns:
-            data_type = 'user'
+    # # Auto-detect data type if not specified
+    # if data_type is None:
+    #     columns = batch_df.columns
+    #     if 'batch_quantity' in columns and len(columns) == 2:
+    #         data_type = 'category'
+    #     elif 'user_id' in columns:
+    #         data_type = 'user'
     
     if data_type == 'category':
         # Process category aggregation data
@@ -180,15 +239,15 @@ def write_to_database(batch_df, batch_id, data_type=None):
             """, (batch_id, category, quantity))
             
             cursor.execute("""
-                INSERT INTO total_sales (category, total_quantity, last_updated) 
+                INSERT INTO sales_per_category (category, total_quantity, last_updated) 
                 VALUES (%s, %s, NOW())
                 ON CONFLICT (category) 
                 DO UPDATE SET 
-                    total_quantity = total_sales.total_quantity + EXCLUDED.total_quantity,
+                    total_quantity = sales_per_category.total_quantity + EXCLUDED.total_quantity,
                     last_updated = NOW()
             """, (category, quantity))
         
-        print(f"Batch {batch_id}: {len(categories_data)} categories processed")
+        print(f"Batch {batch_id}: {len(categories_data)} sales per catagories processed")
     
     elif data_type == 'user':
         # Process user data
@@ -234,7 +293,7 @@ def write_to_database(batch_df, batch_id, data_type=None):
             timestamp = transaction_row['timestamp']
 
             cursor.execute("""
-                INSERT INTO raw_transaction_data (
+                INSERT INTO transaction_data (
                     order_id, user_id, user_name, user_email, street, city, state, 
                     postal_code, country, product_id, category, price, quantity, 
                     shipping_method, payment_method, timestamp, processed_at
@@ -246,6 +305,65 @@ def write_to_database(batch_df, batch_id, data_type=None):
         
         print(f"Batch {batch_id}: {len(transactions_data)} transactions processed")
     
+    elif data_type == 'address':
+        # Process city aggregation data
+        address_data = batch_df.collect()
+        
+        for address_row in address_data:
+            city = address_row['city']
+            state = address_row['state']
+            quantity = address_row['batch_quantity']
+            
+            cursor.execute("""
+                INSERT INTO sales_per_city (city, state, total_quantity, last_updated) 
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (city, state) 
+                DO UPDATE SET 
+                    total_quantity = sales_per_city.total_quantity + EXCLUDED.total_quantity,
+                    last_updated = NOW()
+            """, (city, state, quantity))
+        
+        print(f"Batch {batch_id}: {len(address_data)} sales per cities processed")
+
+    elif data_type == 'payment':
+    # Process payment method aggregation data
+        payment_data = batch_df.collect()
+        
+        for payment_row in payment_data:
+            payment_method = payment_row['payment_method']
+            quantity = payment_row['batch_quantity']
+            
+            cursor.execute("""
+                INSERT INTO sales_per_payment_method (payment_method, total_quantity, last_updated) 
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (payment_method) 
+                DO UPDATE SET 
+                    total_quantity = sales_per_payment_method.total_quantity + EXCLUDED.total_quantity,
+                    last_updated = NOW()
+            """, (payment_method, quantity))
+        
+        print(f"Batch {batch_id}: {len(payment_data)} sales per payment methods processed")
+
+    elif data_type == 'shipping':
+        # Process shipping method aggregation data
+        shipping_data = batch_df.collect()
+        
+        for shipping_row in shipping_data:
+            shipping_method = shipping_row['shipping_method']
+            quantity = shipping_row['batch_quantity']
+            
+            cursor.execute("""
+                INSERT INTO sales_per_shipping_method (shipping_method, total_quantity, last_updated) 
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (shipping_method) 
+                DO UPDATE SET 
+                    total_quantity = sales_per_shipping_method.total_quantity + EXCLUDED.total_quantity,
+                    last_updated = NOW()
+            """, (shipping_method, quantity))
+        
+        print(f"Batch {batch_id}: {len(shipping_data)} sales per shipping methods processed")
+
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -258,7 +376,7 @@ create_tables_if_not_exist()
 # Use lambda functions to pass different data types
 
 # Process category aggregations
-query1 = agg_df.writeStream \
+query1 = category_agg_df.writeStream \
     .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'category')) \
     .outputMode("update") \
     .option("checkpointLocation", "/tmp/spark-checkpoint-categories") \
@@ -278,6 +396,30 @@ query3 = json_df.writeStream \
     .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'transaction')) \
     .outputMode("append") \
     .option("checkpointLocation", "/tmp/spark-checkpoint-transactions") \
+    .start()
+
+
+# Process complete transaction data
+query4 = city_agg_df.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'address')) \
+    .outputMode("update") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-cities") \
+    .start()
+
+
+# Process payment method aggregations
+query5 = payment_agg_df.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'payment')) \
+    .outputMode("update") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-payments") \
+    .start()
+
+
+# Process shipping method aggregations
+query6 = shipping_agg_df.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'shipping')) \
+    .outputMode("update") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-shipping") \
     .start()
 
 
