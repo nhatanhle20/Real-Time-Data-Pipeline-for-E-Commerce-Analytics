@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timezone
 
 PAYMENT_METHODS = ["Credit Card", "PayPal", "COD", "Bank Transfer"]
-SHIPPING_METHODS = ["Free", "Standard", "Fast Express", " Next Day Shipping"]
+SHIPPING_METHODS = ["Free", "Standard", "Fast Express", "Next Day Shipping"]
 
 def generate_order(user, product, address):
     return {
