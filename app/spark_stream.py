@@ -2,6 +2,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, sum, col
 from pyspark.sql.types import StructType, StringType, FloatType, IntegerType
 import psycopg2
+import csv
+import os
 
 
 # Define schema for incoming JSON data with new address and shipping fields
@@ -78,6 +80,9 @@ shipping_agg_df = json_df \
 def create_tables_if_not_exist():
     conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
     cursor = conn.cursor()
+
+    # Set session timezone to UTC+07:00
+    cursor.execute("SET TIME ZONE '+07:00'")
     
     # Create batch_details table
     cursor.execute("""
@@ -142,7 +147,7 @@ def create_tables_if_not_exist():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS transaction_data (
             id SERIAL PRIMARY KEY,
-            order_id VARCHAR(255) UNIQUE NOT NULL,
+            order_id VARCHAR(255) NOT NULL,
             user_id VARCHAR(255) NOT NULL,
             user_name VARCHAR(255) NOT NULL,
             user_email VARCHAR(255) NOT NULL,
@@ -162,6 +167,7 @@ def create_tables_if_not_exist():
         )
     """)
     
+
     # Create indexes
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_batch_details_category ON batch_details(category)
@@ -205,6 +211,7 @@ def create_tables_if_not_exist():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_shipping_method ON transaction_data(shipping_method)
     """)
+
     
     conn.commit()
     cursor.close()
@@ -225,6 +232,9 @@ def write_to_database(batch_df, batch_id, data_type=None):
     #     elif 'user_id' in columns:
     #         data_type = 'user'
     
+    # Set session timezone to UTC+07:00
+    cursor.execute("SET TIME ZONE '+07:00'")
+
     if data_type == 'category':
         # Process category aggregation data
         categories_data = batch_df.collect()
@@ -369,9 +379,53 @@ def write_to_database(batch_df, batch_id, data_type=None):
     conn.close()
 
 
+def import_us_coordinates():
+    conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
+    cursor = conn.cursor()
+
+    # Create table if not exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS us_coordinates (
+            city VARCHAR(255) NOT NULL,
+            state VARCHAR(255) NOT NULL,
+            latitude DECIMAL(10, 8) NOT NULL,
+            longitude DECIMAL(11, 8) NOT NULL,
+            PRIMARY KEY (city, state)
+        )
+    """)
+
+    csv_path = os.path.join(os.path.dirname(__file__), "data", "us_coordinates.csv")
+
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        rows_inserted = 0
+
+        for row in reader:
+            city = row['city']
+            state = row['state']
+            latitude = float(row['latitude'])
+            longitude = float(row['longitude'])
+
+            cursor.execute("""
+                INSERT INTO us_coordinates (city, state, latitude, longitude)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (city, state) DO NOTHING
+            """, (city, state, latitude, longitude))
+
+            rows_inserted += 1
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print(f"Imported {rows_inserted} rows into us_coordinates table")
+
+
 # Create required tables
 create_tables_if_not_exist()
 
+# Import coordinates from CSV
+import_us_coordinates()
 
 # Use lambda functions to pass different data types
 
