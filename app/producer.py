@@ -5,7 +5,7 @@ from kafka import KafkaProducer
 from models.users import generate_users
 from models.products import generate_products
 from models.order_generator import generate_order
-from models.address import generate_addresses
+from models.address import generate_addresses, load_us_cities
 
 producer = KafkaProducer(
     bootstrap_servers="localhost:9092",
@@ -17,7 +17,9 @@ producer = KafkaProducer(
 
 users = generate_users()
 products = generate_products()
-addresses = generate_addresses()
+
+city_state_pool = load_us_cities()
+addresses = generate_addresses(n=50, city_state_pool=city_state_pool)
 
 
 if __name__ == "__main__":
