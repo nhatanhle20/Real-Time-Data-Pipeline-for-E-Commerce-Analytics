@@ -75,6 +75,34 @@ services:
     volumes:
       - grafana-storage:/var/lib/grafana
 
+  airflow:
+    image: apache/airflow:2.7.1
+    container_name: airflow
+    ports:
+      - "8081:8080"
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=your_fernet_key_here
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://ecommerce:ecommerce123@postgres:5432/airflow_db
+    volumes:
+      - ../airflow/dags:/opt/airflow/dags
+      - ../airflow/logs:/opt/airflow/logs
+      - ../airflow/plugins:/opt/airflow/plugins
+      - ../app:/app
+      - /var/run/docker.sock:/var/run/docker.sock  # allow access to Docker daemon to run docker exec
+    depends_on:
+      - postgres
+    networks:
+      - pipeline-net
+    command: >
+      bash -c "
+        pip install gspread oauth2client kafka-python faker faker_commerce &&
+        airflow db migrate &&
+        airflow users create --username admin --password admin --firstname Air --lastname Flow --role Admin --email admin@example.com &&
+        airflow webserver & airflow scheduler 
+      "
+
 networks:
   pipeline-net:
 
