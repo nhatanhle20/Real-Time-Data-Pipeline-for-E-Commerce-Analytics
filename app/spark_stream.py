@@ -477,4 +477,4 @@ query6 = shipping_agg_df.writeStream \
     .start()
 
 
-query1.awaitTermination()
+query1.awaitTermination(60)
