@@ -329,7 +329,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 6,
+        "w": 5,
         "x": 9,
         "y": 1
       },
@@ -417,8 +417,8 @@
       },
       "gridPos": {
         "h": 13,
-        "w": 8,
-        "x": 15,
+        "w": 10,
+        "x": 14,
         "y": 1
       },
       "id": 7,
@@ -689,7 +689,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 6,
+        "w": 5,
         "x": 9,
         "y": 11
       },
@@ -769,8 +769,8 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 4,
-        "x": 15,
+        "w": 5,
+        "x": 14,
         "y": 14
       },
       "id": 22,
@@ -824,7 +824,7 @@
           }
         }
       ],
-      "title": "Payment Method Preferences",
+      "title": "Payment Method Preference",
       "type": "piechart"
     },
     {
@@ -850,7 +850,7 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 4,
+        "w": 5,
         "x": 19,
         "y": 14
       },
@@ -906,7 +906,7 @@
           }
         }
       ],
-      "title": "Panel Title",
+      "title": "Shipping Method Preference",
       "type": "piechart"
     },
     {
@@ -1210,7 +1210,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 6,
+        "w": 5,
         "x": 9,
         "y": 22
       },
@@ -1266,6 +1266,98 @@
       ],
       "title": "Sales per Payment Method",
       "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "depb8975rn3eoc"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "#EAB839",
+                "value": 30
+              },
+              {
+                "color": "green",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 22
+      },
+      "id": 25,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n  category AS \"Product Name\",\r\n  SUM(price * quantity) AS \"Revenue\"\r\nFROM\r\n  transaction_data\r\nWHERE DATE(timestamp) = CURRENT_DATE\r\nGROUP BY\r\n  category\r\nORDER BY\r\n  \"Revenue\" DESC\r\nLIMIT 10",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Top 10 Products by Revenue",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -1421,7 +1513,7 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 6,
+        "w": 5,
         "x": 9,
         "y": 32
       },
@@ -1479,6 +1571,98 @@
       "type": "barchart"
     },
     {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "depb8975rn3eoc"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "percentage",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "#EAB839",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 10,
+        "x": 14,
+        "y": 32
+      },
+      "id": 26,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n  state,\r\n  SUM(price * quantity) AS \"Revenue\"\r\nFROM\r\n  transaction_data\r\nWHERE DATE(timestamp) = CURRENT_DATE\r\nGROUP BY\r\n  state\r\nORDER BY\r\n  \"Revenue\" DESC\r\nLIMIT 10",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Top 10 States by Revenue",
+      "type": "bargauge"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1490,6 +1674,224 @@
       "panels": [],
       "title": "Real-time Statistics",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "depb8975rn3eoc"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineStyle": {
+              "fill": "solid"
+            },
+            "lineWidth": 2,
+            "pointSize": 6,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH time_buckets AS (\r\n    SELECT generate_series(\r\n        date_trunc('minute', NOW() - INTERVAL '6 hours'),\r\n        date_trunc('minute', NOW()),\r\n        INTERVAL '1 minute'  -- ← Changed to 1-minute intervals\r\n    ) as time_bucket\r\n),\r\norder_counts AS (\r\n    SELECT \r\n        DATE_TRUNC('minute', timestamp) as time_bucket,  -- ← Simplified for 1-minute grouping\r\n        COUNT(*) as order_count\r\n    FROM transaction_data \r\n    WHERE timestamp >= NOW() - INTERVAL '6 hours'\r\n    GROUP BY time_bucket\r\n)\r\nSELECT \r\n    tb.time_bucket as time,\r\n    COALESCE(oc.order_count, 0) as \"order\"\r\nFROM time_buckets tb\r\nLEFT JOIN order_counts oc ON tb.time_bucket = oc.time_bucket\r\nORDER BY tb.time_bucket\r\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Real-time Orders",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "depb8975rn3eoc"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 6,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH time_buckets AS (\r\n    SELECT generate_series(\r\n        date_trunc('minute', NOW() - INTERVAL '6 hours'),\r\n        date_trunc('minute', NOW()),\r\n        INTERVAL '1 minute'\r\n    ) AS time_bucket\r\n),\r\nrevenue_per_minute AS (\r\n    SELECT \r\n        date_trunc('minute', timestamp) AS time_bucket,\r\n        SUM(price * quantity) AS revenue\r\n    FROM transaction_data\r\n    WHERE timestamp >= NOW() - INTERVAL '6 hours'\r\n    GROUP BY time_bucket\r\n)\r\nSELECT \r\n    tb.time_bucket AS time,\r\n    COALESCE(rpm.revenue, 0) AS revenue\r\nFROM time_buckets tb\r\nLEFT JOIN revenue_per_minute rpm ON tb.time_bucket = rpm.time_bucket\r\nORDER BY tb.time_bucket\r\n",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Real-time Revenue",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -1528,7 +1930,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 313
+                "value": 318
               }
             ]
           },
@@ -1612,17 +2014,53 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 140
+                "value": 163
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 94
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "user_name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 154
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "city"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 155
               }
             ]
           }
         ]
       },
       "gridPos": {
-        "h": 10,
-        "w": 22,
+        "h": 11,
+        "w": 24,
         "x": 0,
-        "y": 43
+        "y": 54
       },
       "id": 21,
       "options": {
@@ -1645,7 +2083,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \r\n  order_id,\r\n  user_name,\r\n  city,\r\n  state,\r\n  category,\r\n  quantity,\r\n  (price * quantity) as total_price,\r\n  payment_method,\r\n  shipping_method,\r\n  timestamp\r\nFROM transaction_data \r\nORDER BY timestamp DESC \r\nLIMIT 20\r\n",
+          "rawSql": "SELECT \r\n  id,\r\n  order_id,\r\n  user_email,\r\n  user_name,\r\n  city,\r\n  state,\r\n  category,\r\n  quantity,\r\n  (price * quantity) as total_price,\r\n  payment_method,\r\n  shipping_method,\r\n  timestamp\r\nFROM transaction_data \r\nORDER BY timestamp DESC \r\nLIMIT 20\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1668,131 +2106,22 @@
       ],
       "title": "Most Recent Orders",
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "depb8975rn3eoc"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 9,
-        "x": 0,
-        "y": 53
-      },
-      "id": 4,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "WITH time_buckets AS (\r\n    SELECT generate_series(\r\n        date_trunc('minute', NOW() - INTERVAL '6 hours'),\r\n        date_trunc('minute', NOW()),\r\n        INTERVAL '1 minute'  -- ← Changed to 1-minute intervals\r\n    ) as time_bucket\r\n),\r\norder_counts AS (\r\n    SELECT \r\n        DATE_TRUNC('minute', timestamp) as time_bucket,  -- ← Simplified for 1-minute grouping\r\n        COUNT(*) as order_count\r\n    FROM transaction_data \r\n    WHERE timestamp >= NOW() - INTERVAL '6 hours'\r\n    GROUP BY time_bucket\r\n)\r\nSELECT \r\n    tb.time_bucket as time,\r\n    COALESCE(oc.order_count, 0) as \"order\"\r\nFROM time_buckets tb\r\nLEFT JOIN order_counts oc ON tb.time_bucket = oc.time_bucket\r\nORDER BY tb.time_bucket\r\n",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Real-time Orders",
-      "type": "timeseries"
     }
   ],
   "preload": false,
-  "refresh": "",
+  "refresh": "5s",
   "schemaVersion": 41,
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "2025-06-19T08:12:15.910Z",
-    "to": "2025-06-19T10:12:15.910Z"
+    "from": "now-6h",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Ecommerce",
   "uid": "fepc4xihayry8c",
-  "version": 12
+  "version": 19
 }
