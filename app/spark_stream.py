@@ -420,12 +420,33 @@ def import_us_coordinates():
 
     print(f"Imported {rows_inserted} rows into us_coordinates table")
 
+# Import coordinates only if the table doesn't exist
+def us_coordinates_table_exists():
+    conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'us_coordinates'
+        )
+    """)
+    exists = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+    return exists
+
 
 # Create required tables
 create_tables_if_not_exist()
 
-# Import coordinates from CSV
-import_us_coordinates()
+# Import coordinates from CSV if not already existed
+if not us_coordinates_table_exists():
+    import_us_coordinates()
+else:
+    print("us_coordinates table already exists — skipping import.")
+
 
 # Use lambda functions to pass different data types
 
