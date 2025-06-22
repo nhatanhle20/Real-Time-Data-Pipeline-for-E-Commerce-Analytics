@@ -1839,7 +1839,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
@@ -2109,7 +2110,6 @@
     }
   ],
   "preload": false,
-  "refresh": "5s",
   "schemaVersion": 41,
   "tags": [],
   "templating": {
@@ -2123,5 +2123,5 @@
   "timezone": "browser",
   "title": "Ecommerce",
   "uid": "fepc4xihayry8c",
-  "version": 19
+  "version": 20
 }
