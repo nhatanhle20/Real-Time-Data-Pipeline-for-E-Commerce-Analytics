@@ -35,4 +35,4 @@ if __name__ == "__main__":
         print(f"Sending: {order}")
         producer.send("ecommerce-transactions", order)
         producer.flush()
-        time.sleep(2)
+        time.sleep(random.uniform(1, 5))
