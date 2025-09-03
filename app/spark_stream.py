@@ -95,43 +95,43 @@ def create_tables_if_not_exist():
         )
     """)
     
-    # Create sales_per_category table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sales_per_category (
-            category VARCHAR(255) PRIMARY KEY,
-            total_quantity INTEGER NOT NULL DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # # Create sales_per_category table
+    # cursor.execute("""
+    #     CREATE TABLE IF NOT EXISTS sales_per_category (
+    #         category VARCHAR(255) PRIMARY KEY,
+    #         total_quantity INTEGER NOT NULL DEFAULT 0,
+    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    #     )
+    # """)
 
-    # Create sales_per_city table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sales_per_city (
-            city VARCHAR(255) NOT NULL,
-            state VARCHAR(255) NOT NULL,
-            total_quantity INTEGER NOT NULL DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (city, state)
-        )
-    """)
+    # # Create sales_per_city table
+    # cursor.execute("""
+    #     CREATE TABLE IF NOT EXISTS sales_per_city (
+    #         city VARCHAR(255) NOT NULL,
+    #         state VARCHAR(255) NOT NULL,
+    #         total_quantity INTEGER NOT NULL DEFAULT 0,
+    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    #         PRIMARY KEY (city, state)
+    #     )
+    # """)
 
-    # Create sales_per_payment_method table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sales_per_payment_method (
-            payment_method VARCHAR(100) PRIMARY KEY,
-            total_quantity INTEGER NOT NULL DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # # Create sales_per_payment_method table
+    # cursor.execute("""
+    #     CREATE TABLE IF NOT EXISTS sales_per_payment_method (
+    #         payment_method VARCHAR(100) PRIMARY KEY,
+    #         total_quantity INTEGER NOT NULL DEFAULT 0,
+    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    #     )
+    # """)
 
-    # Create sales_per_shipping_method table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sales_per_shipping_method (
-            shipping_method VARCHAR(100) PRIMARY KEY,
-            total_quantity INTEGER NOT NULL DEFAULT 0,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # # Create sales_per_shipping_method table
+    # cursor.execute("""
+    #     CREATE TABLE IF NOT EXISTS sales_per_shipping_method (
+    #         shipping_method VARCHAR(100) PRIMARY KEY,
+    #         total_quantity INTEGER NOT NULL DEFAULT 0,
+    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    #     )
+    # """)
 
     # Create users table
     cursor.execute("""
@@ -142,22 +142,66 @@ def create_tables_if_not_exist():
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # Create transaction_data table with new address and shipping fields
+
+    # Create products table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            product_id VARCHAR(255) PRIMARY KEY,
+            product_name VARCHAR(255) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            quantity INTEGER NOT NULL,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Create shipping_methods table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS shipping_methods (
+            id SERIAL PRIMARY KEY,
+            shipping_method VARCHAR(255) NOT NULL,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # # Insert default shipping methods if not exists
+    # cursor.execute("""
+    #     INSERT INTO shipping_methods (shipping_method) VALUES
+    #     ('Free'),
+    #     ('Standard'),
+    #     ('Fast Express'),
+    #     ('Next Day Shipping')
+    # """)
+
+    # Create payment_methods table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payment_methods (
+            id SERIAL PRIMARY KEY,
+            payment_method VARCHAR(255) NOT NULL,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # # Insert default payment methods if not exists
+    # cursor.execute("""
+    #     INSERT INTO payment_methods (payment_method) VALUES
+    #     ('Credit Card'),
+    #     ('PayPal'),
+    #     ('COD'),
+    #     ('Bank Transfer')
+    # """)
+
+    # Create transaction_data table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS transaction_data (
             id SERIAL PRIMARY KEY,
             order_id VARCHAR(255) NOT NULL,
             user_id VARCHAR(255) NOT NULL,
-            user_name VARCHAR(255) NOT NULL,
-            user_email VARCHAR(255) NOT NULL,
             street VARCHAR(500) NOT NULL,
             city VARCHAR(255) NOT NULL,
             state VARCHAR(255) NOT NULL,
             postal_code VARCHAR(20) NOT NULL,
             country VARCHAR(255) NOT NULL,
             product_id VARCHAR(255) NOT NULL,
-            category VARCHAR(255) NOT NULL,
             price DECIMAL(10,2) NOT NULL,
             quantity INTEGER NOT NULL,
             shipping_method VARCHAR(100) NOT NULL,
@@ -175,26 +219,23 @@ def create_tables_if_not_exist():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_batch_details_batch_id ON batch_details(batch_id)
     """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sales_per_category_updated ON sales_per_category(last_updated)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sales_per_city_updated ON sales_per_city(last_updated)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sales_per_payment_method_updated ON sales_per_payment_method(last_updated)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_sales_per_shipping_method_updated ON sales_per_shipping_method(last_updated)
-    """)
+    # cursor.execute("""
+    #     CREATE INDEX IF NOT EXISTS idx_sales_per_category_updated ON sales_per_category(last_updated)
+    # """)
+    # cursor.execute("""
+    #     CREATE INDEX IF NOT EXISTS idx_sales_per_city_updated ON sales_per_city(last_updated)
+    # """)
+    # cursor.execute("""
+    #     CREATE INDEX IF NOT EXISTS idx_sales_per_payment_method_updated ON sales_per_payment_method(last_updated)
+    # """)
+    # cursor.execute("""
+    #     CREATE INDEX IF NOT EXISTS idx_sales_per_shipping_method_updated ON sales_per_shipping_method(last_updated)
+    # """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(user_email)
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_user_id ON transaction_data(user_id)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_raw_transaction_category ON transaction_data(category)
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON transaction_data(timestamp)
