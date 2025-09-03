@@ -509,7 +509,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  s.city,\r\n  s.state,\r\n  SUM(s.total_quantity) AS total_sales,\r\n  AVG(c.latitude) AS latitude,\r\n  AVG(c.longitude) AS longitude\r\nFROM\r\n  sales_per_city s\r\nJOIN\r\n  us_coordinates c\r\nON\r\n  LOWER(TRIM(s.city)) = LOWER(TRIM(c.city))\r\n  AND LOWER(TRIM(s.state)) = LOWER(TRIM(c.state))\r\nGROUP BY\r\n  s.city, s.state\r\n",
+          "rawSql": "SELECT\r\n    c.city,\r\n    c.state,\r\n    c.latitude,\r\n    c.longitude,\r\n    SUM(t.quantity * t.price) AS total_sales\r\nFROM\r\n    transaction_data t\r\nJOIN\r\n    us_coordinates c\r\nON\r\n    t.city = c.city\r\n   AND t.state = c.state\r\nWHERE\r\n    $__timeFilter(t.timestamp)\r\nGROUP BY\r\n    c.city, c.state, c.latitude, c.longitude\r\nORDER BY\r\n    total_sales DESC;\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -803,7 +803,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  payment_method,\r\n  total_quantity\r\nFROM\r\n  sales_per_payment_method\r\nORDER BY\r\n  total_quantity DESC",
+          "rawSql": "SELECT\r\n    payment_method,\r\n    SUM(quantity) AS total_quantity\r\nFROM\r\n    transaction_data\r\nGROUP BY\r\n    payment_method\r\nORDER BY\r\n    total_quantity DESC;\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -885,7 +885,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\r\n  shipping_method,\r\n  total_quantity\r\nFROM\r\n  sales_per_shipping_method \r\nORDER BY\r\n  total_quantity DESC",
+          "rawSql": "SELECT\r\n    shipping_method,\r\n    SUM(quantity) AS total_quantity\r\nFROM\r\n    transaction_data\r\nGROUP BY\r\n    shipping_method\r\nORDER BY\r\n    total_quantity DESC;\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -1585,14 +1585,14 @@
             "mode": "percentage",
             "steps": [
               {
-                "color": "green"
+                "color": "red"
               },
               {
-                "color": "#EAB839",
+                "color": "yellow",
                 "value": 30
               },
               {
-                "color": "red",
+                "color": "green",
                 "value": 60
               }
             ]
@@ -2084,7 +2084,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT \r\n  id,\r\n  order_id,\r\n  user_email,\r\n  user_name,\r\n  city,\r\n  state,\r\n  category,\r\n  quantity,\r\n  (price * quantity) as total_price,\r\n  payment_method,\r\n  shipping_method,\r\n  timestamp\r\nFROM transaction_data \r\nORDER BY timestamp DESC \r\nLIMIT 20\r\n",
+          "rawSql": "SELECT \r\n  id,\r\n  order_id,\r\n  user_id,\r\n  city,\r\n  state,\r\n  quantity,\r\n  (price * quantity) as total_price,\r\n  shipping_method,\r\n  payment_method,\r\n  timestamp\r\nFROM transaction_data \r\nORDER BY timestamp DESC \r\nLIMIT 20\r\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -2123,5 +2123,5 @@
   "timezone": "browser",
   "title": "Ecommerce",
   "uid": "fepc4xihayry8c",
-  "version": 20
+  "version": 23
 }
