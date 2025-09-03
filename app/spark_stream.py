@@ -94,44 +94,6 @@ def create_tables_if_not_exist():
             processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
-    # # Create sales_per_category table
-    # cursor.execute("""
-    #     CREATE TABLE IF NOT EXISTS sales_per_category (
-    #         category VARCHAR(255) PRIMARY KEY,
-    #         total_quantity INTEGER NOT NULL DEFAULT 0,
-    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #     )
-    # """)
-
-    # # Create sales_per_city table
-    # cursor.execute("""
-    #     CREATE TABLE IF NOT EXISTS sales_per_city (
-    #         city VARCHAR(255) NOT NULL,
-    #         state VARCHAR(255) NOT NULL,
-    #         total_quantity INTEGER NOT NULL DEFAULT 0,
-    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    #         PRIMARY KEY (city, state)
-    #     )
-    # """)
-
-    # # Create sales_per_payment_method table
-    # cursor.execute("""
-    #     CREATE TABLE IF NOT EXISTS sales_per_payment_method (
-    #         payment_method VARCHAR(100) PRIMARY KEY,
-    #         total_quantity INTEGER NOT NULL DEFAULT 0,
-    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #     )
-    # """)
-
-    # # Create sales_per_shipping_method table
-    # cursor.execute("""
-    #     CREATE TABLE IF NOT EXISTS sales_per_shipping_method (
-    #         shipping_method VARCHAR(100) PRIMARY KEY,
-    #         total_quantity INTEGER NOT NULL DEFAULT 0,
-    #         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    #     )
-    # """)
 
     # Create users table
     cursor.execute("""
@@ -149,7 +111,6 @@ def create_tables_if_not_exist():
             product_id VARCHAR(255) PRIMARY KEY,
             product_name VARCHAR(255) NOT NULL,
             price DECIMAL(10,2) NOT NULL,
-            quantity INTEGER NOT NULL,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -219,18 +180,6 @@ def create_tables_if_not_exist():
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_batch_details_batch_id ON batch_details(batch_id)
     """)
-    # cursor.execute("""
-    #     CREATE INDEX IF NOT EXISTS idx_sales_per_category_updated ON sales_per_category(last_updated)
-    # """)
-    # cursor.execute("""
-    #     CREATE INDEX IF NOT EXISTS idx_sales_per_city_updated ON sales_per_city(last_updated)
-    # """)
-    # cursor.execute("""
-    #     CREATE INDEX IF NOT EXISTS idx_sales_per_payment_method_updated ON sales_per_payment_method(last_updated)
-    # """)
-    # cursor.execute("""
-    #     CREATE INDEX IF NOT EXISTS idx_sales_per_shipping_method_updated ON sales_per_shipping_method(last_updated)
-    # """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(user_email)
     """)
@@ -265,14 +214,6 @@ def write_to_database(batch_df, batch_id, data_type=None):
     conn = psycopg2.connect("postgresql://ecommerce:ecommerce123@host.docker.internal:5432/ecommerce_db")
     cursor = conn.cursor()
     
-    # # Auto-detect data type if not specified
-    # if data_type is None:
-    #     columns = batch_df.columns
-    #     if 'batch_quantity' in columns and len(columns) == 2:
-    #         data_type = 'category'
-    #     elif 'user_id' in columns:
-    #         data_type = 'user'
-    
     # Set session timezone to UTC+07:00
     cursor.execute("SET TIME ZONE '+07:00'")
 
@@ -288,15 +229,6 @@ def write_to_database(batch_df, batch_id, data_type=None):
                 INSERT INTO batch_details (batch_id, category, quantity, processed_at) 
                 VALUES (%s, %s, %s, NOW())
             """, (batch_id, category, quantity))
-            
-            cursor.execute("""
-                INSERT INTO sales_per_category (category, total_quantity, last_updated) 
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (category) 
-                DO UPDATE SET 
-                    total_quantity = sales_per_category.total_quantity + EXCLUDED.total_quantity,
-                    last_updated = NOW()
-            """, (category, quantity))
         
         print(f"Batch {batch_id}: {len(categories_data)} sales per catagories processed")
     
@@ -328,15 +260,12 @@ def write_to_database(batch_df, batch_id, data_type=None):
         for transaction_row in transactions_data:
             order_id = transaction_row['order_id']
             user_id = transaction_row['user_id']
-            user_name = transaction_row['user_name']
-            user_email = transaction_row['user_email']
             street = transaction_row['street']
             city = transaction_row['city']
             state = transaction_row['state']
             postal_code = transaction_row['postal_code']
             country = transaction_row['country']
             product_id = transaction_row['product_id']
-            category = transaction_row['category']
             price = transaction_row['price']
             quantity = transaction_row['quantity']
             shipping_method = transaction_row['shipping_method']
@@ -345,14 +274,16 @@ def write_to_database(batch_df, batch_id, data_type=None):
 
             cursor.execute("""
                 INSERT INTO transaction_data (
-                    order_id, user_id, user_name, user_email, street, city, state, 
-                    postal_code, country, product_id, category, price, quantity, 
+                    order_id, user_id, street, city, state, 
+                    postal_code, country, product_id, price, quantity, 
                     shipping_method, payment_method, timestamp, processed_at
                 ) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """, (order_id, user_id, user_name, user_email, street, city, state, 
-                  postal_code, country, product_id, category, price, quantity, 
-                  shipping_method, payment_method, timestamp))
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """, (
+                order_id, user_id, street, city, state,
+                postal_code, country, product_id, price, quantity,
+                shipping_method, payment_method, timestamp
+            ))
         
         print(f"Batch {batch_id}: {len(transactions_data)} transactions processed")
     
@@ -375,44 +306,6 @@ def write_to_database(batch_df, batch_id, data_type=None):
             """, (city, state, quantity))
         
         print(f"Batch {batch_id}: {len(address_data)} sales per cities processed")
-
-    elif data_type == 'payment':
-    # Process payment method aggregation data
-        payment_data = batch_df.collect()
-        
-        for payment_row in payment_data:
-            payment_method = payment_row['payment_method']
-            quantity = payment_row['batch_quantity']
-            
-            cursor.execute("""
-                INSERT INTO sales_per_payment_method (payment_method, total_quantity, last_updated) 
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (payment_method) 
-                DO UPDATE SET 
-                    total_quantity = sales_per_payment_method.total_quantity + EXCLUDED.total_quantity,
-                    last_updated = NOW()
-            """, (payment_method, quantity))
-        
-        print(f"Batch {batch_id}: {len(payment_data)} sales per payment methods processed")
-
-    elif data_type == 'shipping':
-        # Process shipping method aggregation data
-        shipping_data = batch_df.collect()
-        
-        for shipping_row in shipping_data:
-            shipping_method = shipping_row['shipping_method']
-            quantity = shipping_row['batch_quantity']
-            
-            cursor.execute("""
-                INSERT INTO sales_per_shipping_method (shipping_method, total_quantity, last_updated) 
-                VALUES (%s, %s, NOW())
-                ON CONFLICT (shipping_method) 
-                DO UPDATE SET 
-                    total_quantity = sales_per_shipping_method.total_quantity + EXCLUDED.total_quantity,
-                    last_updated = NOW()
-            """, (shipping_method, quantity))
-        
-        print(f"Batch {batch_id}: {len(shipping_data)} sales per shipping methods processed")
 
 
     conn.commit()
