@@ -8,7 +8,7 @@ from models.order_generator import generate_order
 from models.address import generate_addresses, load_us_cities
 
 producer = KafkaProducer(
-    bootstrap_servers="kafka:29092", # "localhost:9092" to run producer.py on local machine; "kafka:29092" to run on airflow 
+    bootstrap_servers="kafka:29092", # "localhost:9092" to run on local machine; "kafka:29092" to run on airflow 
     value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     retries=5,
     max_request_size=1_000_000
