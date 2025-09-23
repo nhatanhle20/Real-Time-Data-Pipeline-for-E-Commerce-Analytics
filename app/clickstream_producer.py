@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 fake = Faker()
 
 producer = KafkaProducer(
-    bootstrap_servers="localhost:9092",
+    bootstrap_servers="kafka:29092", # "localhost:9092" to run on local machine; "kafka:29092" to run on airflow 
     value_serializer=lambda v: json.dumps(v).encode("utf-8")
 )
 
@@ -31,5 +31,5 @@ if __name__ == "__main__":
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         print(f"Sending clickstream: {click_event}")
-        producer.send("user-clickstream", click_event)
+        producer.send("clickstream-logs", click_event)
         time.sleep(random.uniform(1, 5))
