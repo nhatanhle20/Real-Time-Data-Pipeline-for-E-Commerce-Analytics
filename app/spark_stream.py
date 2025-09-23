@@ -6,7 +6,7 @@ import csv
 import os
 
 
-# Define schema for incoming JSON data with new address and shipping fields
+# Define schema for incoming JSON data 
 schema = StructType() \
     .add("order_id", StringType()) \
     .add("user_id", StringType()) \
@@ -25,6 +25,22 @@ schema = StructType() \
     .add("payment_method", StringType()) \
     .add("timestamp", StringType())
 
+# Clickstream logs schema
+clickstream_schema = StructType() \
+    .add("event_id", StringType()) \
+    .add("user_id", StringType()) \
+    .add("page_url", StringType()) \
+    .add("action", StringType()) \
+    .add("timestamp", StringType())
+
+# Inventory updates schema
+inventory_schema = StructType() \
+    .add("event_id", StringType()) \
+    .add("product_id", StringType()) \
+    .add("change_type", StringType()) \
+    .add("quantity_change", IntegerType()) \
+    .add("timestamp", StringType())
+
 
 # Initialize Spark session
 spark = SparkSession.builder \
@@ -41,12 +57,10 @@ df = spark.readStream \
     .option("failOnDataLoss","false") \
     .load()
 
-
 # Convert value column from bytes to JSON
 json_df = df.selectExpr("CAST(value AS STRING)") \
     .select(from_json(col("value"), schema).alias("data")) \
     .select("data.*")
-
 
 # Aggregate: total quantity sold per category per batch
 category_agg_df = json_df \
@@ -54,13 +68,11 @@ category_agg_df = json_df \
     .groupBy("category") \
     .agg(sum("quantity").alias("batch_quantity"))
 
-
 # Aggregate: total quantity sold per city per batch
 city_agg_df = json_df \
     .withColumn("quantity", col("quantity").cast("integer")) \
     .groupBy("city", "state") \
     .agg(sum("quantity").alias("batch_quantity"))
-
 
 # Aggregate: total quantity sold per payment method per batch
 payment_agg_df = json_df \
@@ -68,12 +80,40 @@ payment_agg_df = json_df \
     .groupBy("payment_method") \
     .agg(sum("quantity").alias("batch_quantity"))
 
-
 # Aggregate: total quantity sold per shipping method per batch
 shipping_agg_df = json_df \
     .withColumn("quantity", col("quantity").cast("integer")) \
     .groupBy("shipping_method") \
     .agg(sum("quantity").alias("batch_quantity"))
+
+# Read clickstream logs
+clickstream_df = spark.readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "kafka:29092") \
+    .option("subscribe", "clickstream-logs") \
+    .option("startingOffsets", "earliest") \
+    .option("failOnDataLoss","false") \
+    .load()
+
+# Read inventory updates
+inventory_df = spark.readStream \
+    .format("kafka") \
+    .option("kafka.bootstrap.servers", "kafka:29092") \
+    .option("subscribe", "inventory-updates") \
+    .option("startingOffsets", "earliest") \
+    .option("failOnDataLoss","false") \
+    .load()
+
+# Parse JSON messages
+# Clickstream
+clickstream_json = clickstream_df.selectExpr("CAST(value AS STRING)") \
+    .select(from_json(col("value"), clickstream_schema).alias("data")) \
+    .select("data.*")
+
+# Inventory
+inventory_json = inventory_df.selectExpr("CAST(value AS STRING)") \
+    .select(from_json(col("value"), inventory_schema).alias("data")) \
+    .select("data.*")
 
 
 # Function to create required table if not exist
@@ -109,7 +149,7 @@ def create_tables_if_not_exist():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS products (
             product_id VARCHAR(255) PRIMARY KEY,
-            product_name VARCHAR(255) NOT NULL,
+            category VARCHAR(255) NOT NULL,
             price DECIMAL(10,2) NOT NULL,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -163,6 +203,7 @@ def create_tables_if_not_exist():
             postal_code VARCHAR(20) NOT NULL,
             country VARCHAR(255) NOT NULL,
             product_id VARCHAR(255) NOT NULL,
+            category VARCHAR(255) NOT NULL,
             price DECIMAL(10,2) NOT NULL,
             quantity INTEGER NOT NULL,
             shipping_method VARCHAR(100) NOT NULL,
@@ -172,6 +213,31 @@ def create_tables_if_not_exist():
         )
     """)
     
+    # Clickstream logs
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS clickstream_logs (
+            id SERIAL PRIMARY KEY,
+            event_id VARCHAR(255) NOT NULL,
+            user_id VARCHAR(255),
+            page_url VARCHAR(50),
+            action VARCHAR(50),
+            timestamp TIMESTAMP,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Inventory updates
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS inventory_updates (
+            id SERIAL PRIMARY KEY,
+            event_id VARCHAR(255) NOT NULL,
+            product_id VARCHAR(255) NOT NULL,
+            change_type VARCHAR(50) NOT NULL,
+            quantity_change INTEGER NOT NULL,
+            timestamp TIMESTAMP,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
     # Create indexes
     cursor.execute("""
@@ -185,6 +251,9 @@ def create_tables_if_not_exist():
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_user_id ON transaction_data(user_id)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_raw_transaction_category ON transaction_data(category)
     """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_raw_transaction_timestamp ON transaction_data(timestamp)
@@ -252,6 +321,27 @@ def write_to_database(batch_df, batch_id, data_type=None):
             """, (user_id, user_name, user_email))
         
         print(f"Batch {batch_id}: {len(users_data)} users processed")
+
+    elif data_type == 'product':
+        # Process product data
+        products_data = batch_df.select("product_id", "category", "price").distinct().collect()
+        
+        for product_row in products_data:
+            product_id = product_row['product_id']
+            category = product_row['category']
+            price = product_row['price']
+
+            cursor.execute("""
+                INSERT INTO products (product_id, category, price, last_updated) 
+                VALUES (%s, %s, %s, NOW())
+                ON CONFLICT (product_id) 
+                DO UPDATE SET 
+                    category = EXCLUDED.category,
+                    price = EXCLUDED.price,
+                    last_updated = NOW()
+            """, (product_id, category, price))
+        
+        print(f"Batch {batch_id}: {len(products_data)} products processed")
     
     elif data_type == 'transaction':
         # Process complete transaction data with new address and shipping fields
@@ -266,6 +356,7 @@ def write_to_database(batch_df, batch_id, data_type=None):
             postal_code = transaction_row['postal_code']
             country = transaction_row['country']
             product_id = transaction_row['product_id']
+            category = transaction_row['category']
             price = transaction_row['price']
             quantity = transaction_row['quantity']
             shipping_method = transaction_row['shipping_method']
@@ -275,13 +366,13 @@ def write_to_database(batch_df, batch_id, data_type=None):
             cursor.execute("""
                 INSERT INTO transaction_data (
                     order_id, user_id, street, city, state, 
-                    postal_code, country, product_id, price, quantity, 
+                    postal_code, country, product_id, category, price, quantity, 
                     shipping_method, payment_method, timestamp, processed_at
                 ) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """, (
                 order_id, user_id, street, city, state,
-                postal_code, country, product_id, price, quantity,
+                postal_code, country, product_id, category, price, quantity,
                 shipping_method, payment_method, timestamp
             ))
         
@@ -306,6 +397,40 @@ def write_to_database(batch_df, batch_id, data_type=None):
             """, (city, state, quantity))
         
         print(f"Batch {batch_id}: {len(address_data)} sales per cities processed")
+
+    elif data_type == 'clickstream':
+        clickstream_data = batch_df.collect()
+
+        for clickstream_row in clickstream_data:
+            event_id = clickstream_row['event_id']
+            user_id = clickstream_row['user_id']
+            page_url = clickstream_row['page_url']
+            action = clickstream_row['action']
+            timestamp = clickstream_row['timestamp']
+
+            cursor.execute("""
+                INSERT INTO clickstream_logs (event_id, user_id, page_url, action, timestamp, processed_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (event_id, user_id, page_url, action, timestamp))
+
+        print(f"Batch {batch_id}: {len(clickstream_data)} clickstream logs processed")
+
+    elif data_type == 'inventory':
+        inventory_data = batch_df.collect()
+
+        for inventory_row in inventory_data:
+            event_id = inventory_row['event_id']
+            product_id = inventory_row['product_id']
+            change_type = inventory_row['change_type']
+            quantity_change = inventory_row['quantity_change']
+            timestamp = inventory_row['timestamp']
+
+            cursor.execute("""
+                INSERT INTO inventory_updates (event_id, product_id, change_type, quantity_change, timestamp, processed_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (event_id, product_id, change_type, quantity_change, timestamp))
+
+        print(f"Batch {batch_id}: {len(inventory_data)} inventory updates processed")
 
 
     conn.commit()
@@ -408,7 +533,7 @@ query3 = json_df.writeStream \
     .start()
 
 
-# Process complete transaction data
+# Process address data
 query4 = city_agg_df.writeStream \
     .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'address')) \
     .outputMode("update") \
@@ -431,5 +556,25 @@ query6 = shipping_agg_df.writeStream \
     .option("checkpointLocation", "/tmp/spark-checkpoint-shipping") \
     .start()
 
+# Process product data
+query7 = json_df.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'product')) \
+    .outputMode("append") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-shipping") \
+    .start()
+
+# Clickstream logs
+query_click = clickstream_json.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'clickstream')) \
+    .outputMode("append") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-clickstream") \
+    .start()
+
+# Inventory updates
+query_inv = inventory_json.writeStream \
+    .foreachBatch(lambda df, batch_id: write_to_database(df, batch_id, 'inventory')) \
+    .outputMode("append") \
+    .option("checkpointLocation", "/tmp/spark-checkpoint-inventory") \
+    .start()
 
 query1.awaitTermination(60)
