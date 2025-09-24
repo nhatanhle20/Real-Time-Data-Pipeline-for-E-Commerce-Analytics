@@ -42,6 +42,9 @@ services:
     volumes:
       - ../app:/app  # Python scripts (spark_stream.py etc.)
       - ./jars/postgresql-42.7.2.jar:/opt/bitnami/spark/jars/postgresql-42.7.2.jar
+    ports:
+      - "4040:4040"   # Spark UI
+      - "8888:8080"   # Spark master web UI 
 
   postgres:
     image: postgres:14
@@ -85,6 +88,13 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=your_fernet_key_here
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://ecommerce:ecommerce123@postgres:5432/airflow_db
+      - AIRFLOW__SMTP__SMTP_HOST=smtp.gmail.com
+      - AIRFLOW__SMTP__SMTP_STARTTLS=True
+      - AIRFLOW__SMTP__SMTP_SSL=False
+      - AIRFLOW__SMTP__SMTP_USER=email@gmail.com
+      - AIRFLOW__SMTP__SMTP_PASSWORD=google_account_password
+      - AIRFLOW__SMTP__SMTP_PORT=587
+      - AIRFLOW__SMTP__SMTP_MAIL_FROM=email@gmail.com
     volumes:
       - ../airflow/dags:/opt/airflow/dags
       - ../airflow/logs:/opt/airflow/logs
